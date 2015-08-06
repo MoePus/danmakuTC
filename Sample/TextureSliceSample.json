@@ -1,0 +1,31 @@
+{
+    "name": "bullet1",
+    "type1": [
+        {
+            "left": "value",
+            "right": "value",
+            "top": "value",
+            "bottom": "value"
+        },
+        {
+            "left": "value",
+            "right": "value",
+            "top": "value",
+            "bottom": "value"
+        }
+    ],
+    "type2": [
+        {
+            "left": "value",
+            "right": "value",
+            "top": "value",
+            "bottom": "value"
+        },
+        {
+            "left": "value",
+            "right": "value",
+            "top": "value",
+            "bottom": "value"
+        }
+    ]
+}
