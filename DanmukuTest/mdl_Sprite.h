@@ -10,6 +10,7 @@
 #include "STPK.h"
 //#include<DxErr.h>
 #include<xnamath.h>
+#include <iostream>
 #include <vector>
 #include "thread"
 
@@ -43,6 +44,13 @@ struct VertexPos
 	XMFLOAT2 tex0;
 };
 
+struct Rectf
+{
+	float left;
+	float right;
+	float top;
+	float bottom;
+};
 
 class sprite_ex
 {
@@ -71,8 +79,10 @@ public:
 	DWORD load_texture(char* filename);
 	void unload_texture(DWORD texture_handle);
 
-	DWORD mdl_sprite::init_sprite(DWORD texture_handle);
+	DWORD mdl_sprite::init_sprite(DWORD texture_handle,Rectf* cutter=NULL);
 	void unload_sprite(DWORD sprite_handle);
+
+	std::vector<std::vector<DWORD>> mdl_sprite::init_cut_sprite(DWORD texture_handle,char* cutScene);
 
 	BOOL add2RenList(DWORD sprite_handle);
 	BOOL remove4RenList(DWORD RenN);

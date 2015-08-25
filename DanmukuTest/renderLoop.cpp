@@ -123,6 +123,7 @@ protected:
 	XMFLOAT2 big;
 	DWORD teH;
 	DWORD spH;
+	std::vector<std::vector<DWORD>> spHVector;
 	std::vector < spritedes >  list;
 };
 
@@ -257,7 +258,7 @@ typedef int(*fun_proc)(void* lp,int catalogue);
  class danmu :public msprite
 {
 public:
-	danmu::danmu(char* filename)
+	danmu::danmu(char* filename , char* cutScene="DT\\bullet1_Slicer.json")
 	{
 		idFile = "id.c";
 		danmuLst.resize(16384);
@@ -269,8 +270,9 @@ public:
 		ZeroMemory(memPool, 1024 * 1024);
 		
 		teH = gs->load_texture(filename);
-		spH = gs->init_sprite(teH);
-		big = gs->spritemap[spH].big;
+		//spH = gs->init_sprite(teH);
+		spHVector = gs->init_cut_sprite(teH, cutScene);
+		//big = gs->spritemap[spH].big;
 		parseDid = parseScript();
 	
 
@@ -303,7 +305,15 @@ public:
 		_aligned_free(memPool);
 		_aligned_free(memUsage);
 		CloseHandle(Hfile);
-		gs->unload_sprite(spH);
+		//gs->unload_sprite(spH);
+		for (unsigned int i = 0; i < spHVector.size(); i++)
+		{
+			for (unsigned int j = 0; j < spHVector[i].size(); j++)
+			{
+				gs->unload_sprite(spHVector[i][j]);
+			}
+		}
+
 		gs->unload_texture(teH);
 
 	}
@@ -380,7 +390,7 @@ public:
 		{
 			if (!danmuLst[i].first) continue;
 			int j = gs->RenList.size();
-			gs->add2RenList(spH);
+			gs->add2RenList(spHVector[danmuLst[i].second>>8][danmuLst[i].second & 0xff]);
 			XMFLOAT2 pos = *danmuLst[i].first->getPos();
 			gs->RenList[j].position = XMFLOAT2(2.0f*pos.x,w_height-2.0f*pos.y);
 			gs->RenList[j].rotation = danmuLst[i].first->getRoat()- XM_2PI / 4.0f;
@@ -607,7 +617,7 @@ void renderInit()
 	gs = new mdl_sprite;
 	ziji = new player;
 	gs->RenList.reserve(16384);
-	id = new danmu("DT\\bullet.png");
+	id = new danmu("DT\\bullet1.png");
 	spriteLst.push_back(ziji);
 	spriteLst.push_back(id);
 
@@ -637,7 +647,7 @@ void Process(HANDLE frameUpdateNotify)
 		if (id->waitForIdChange)
 		{
 			delete id;
-			id = new danmu("DT\\bullet.png");
+			id = new danmu("DT\\bullet1.png");
 			delete gt;
 			gt = new globalttime;
 			spriteLst.clear();

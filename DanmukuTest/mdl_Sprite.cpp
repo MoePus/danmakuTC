@@ -214,7 +214,7 @@ void mdl_sprite::unload_texture(DWORD texture_handle)
 	texturemap.erase(texture_handle);
 }
 
-DWORD mdl_sprite::init_sprite(DWORD texture_handle)
+DWORD mdl_sprite::init_sprite(DWORD texture_handle,Rectf* cutter)
 {
 	HRESULT d3dResult;
 
@@ -228,6 +228,9 @@ DWORD mdl_sprite::init_sprite(DWORD texture_handle)
 	D3D11_TEXTURE2D_DESC colorTexDesc;
 	((ID3D11Texture2D*)colorTex)->GetDesc(&colorTexDesc);
 	colorTex->Release();
+
+	if(!cutter)
+	{
 	float halfWidth = (float)colorTexDesc.Width / 2.0f;
 	float halfHeight = (float)colorTexDesc.Height / 2.0f;
 
@@ -241,7 +244,6 @@ DWORD mdl_sprite::init_sprite(DWORD texture_handle)
 		{ XMFLOAT3(-halfWidth, halfHeight, 1.0f), XMFLOAT2(0.0f, 0.0f) },
 		{ XMFLOAT3(halfWidth, halfHeight, 1.0f), XMFLOAT2(1.0f, 0.0f) },
 	};
-
 	D3D11_BUFFER_DESC vertexDesc;
 	ZeroMemory(&vertexDesc, sizeof(vertexDesc));
 	vertexDesc.Usage = D3D11_USAGE_DEFAULT;
@@ -253,6 +255,33 @@ DWORD mdl_sprite::init_sprite(DWORD texture_handle)
 	resourceData.pSysMem = vertices;
 
 	d3dResult = d3dDevice_->CreateBuffer(&vertexDesc, &resourceData, &vertexBuffer_);
+	}
+	else
+	{
+		float halfWidth = (float)colorTexDesc.Width *(cutter->right - cutter->left)/ (float)colorTexDesc.Width / 2.0f;
+		float halfHeight = (float)colorTexDesc.Height *(cutter->bottom - cutter->top)/ (float)colorTexDesc.Height / 2.0f;
+		VertexPos vertices[] =
+		{
+			{ XMFLOAT3(halfWidth, halfHeight, 1.0f), XMFLOAT2(cutter->right / (float)colorTexDesc.Width, cutter->top / (float)colorTexDesc.Height) },
+			{ XMFLOAT3(halfWidth, -halfHeight, 1.0f), XMFLOAT2(cutter->right / (float)colorTexDesc.Width, cutter->bottom / (float)colorTexDesc.Height) },
+			{ XMFLOAT3(-halfWidth, -halfHeight, 1.0f), XMFLOAT2(cutter->left / (float)colorTexDesc.Width, cutter->bottom / (float)colorTexDesc.Height) },
+			{ XMFLOAT3(-halfWidth, -halfHeight, 1.0f), XMFLOAT2(cutter->left / (float)colorTexDesc.Width, cutter->bottom / (float)colorTexDesc.Height) },
+			{ XMFLOAT3(-halfWidth, halfHeight, 1.0f), XMFLOAT2(cutter->left / (float)colorTexDesc.Width,cutter->top / (float)colorTexDesc.Height) },
+			{ XMFLOAT3(halfWidth, halfHeight, 1.0f), XMFLOAT2(cutter->right / (float)colorTexDesc.Width, cutter->top / (float)colorTexDesc.Height) },
+		};
+		D3D11_BUFFER_DESC vertexDesc;
+		ZeroMemory(&vertexDesc, sizeof(vertexDesc));
+		vertexDesc.Usage = D3D11_USAGE_DEFAULT;
+		vertexDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+		vertexDesc.ByteWidth = sizeof(VertexPos) * 6;
+
+		D3D11_SUBRESOURCE_DATA resourceData;
+		ZeroMemory(&resourceData, sizeof(resourceData));
+		resourceData.pSysMem = vertices;
+
+		d3dResult = d3dDevice_->CreateBuffer(&vertexDesc, &resourceData, &vertexBuffer_);
+	}
+
 
 	if (FAILED(d3dResult))
 	{
@@ -346,10 +375,11 @@ void mdl_sprite::spriteRender()
 	for (DWORD i = 0; i < size;i++)
 	{
 
-		sprite* st = &spritemap[RenList[i].sprite_handle];
+		sprite* st = &spritemap[RenList[i].sprite_handle];;
 
 		if (cmpSpriteHandle != RenList[i].sprite_handle)
 	{
+		st= &spritemap[RenList[i].sprite_handle];;
 		cmpSpriteHandle = RenList[i].sprite_handle;
 	d3dContext_->IASetVertexBuffers(0, 1, &st->vertexBuffer_, &stride, &offset);
 	d3dContext_->PSSetShaderResources(0, 1, &texturemap[st->texture_handle].colorMap_);
@@ -375,4 +405,37 @@ void MDL_spriteRender(mdl_sprite* sp)
 {
 	sp->spriteRender();
 
+}
+
+
+#include "rapidjson/document.h" // rapidjson's DOM-style API  
+#include "rapidjson/prettywriter.h" // for stringify JSON  
+
+std::vector<std::vector<DWORD>> mdl_sprite::init_cut_sprite(DWORD texture_handle, char* cutScene)
+{
+	STPK_ret cutterM = STPK_read(SpecialFNVHash(cutScene, cutScene + strlen(cutScene), NULL));
+
+	rapidjson::Document slicer;
+	slicer.Parse<0>((char*)cutterM.mem);
+	std::vector<std::vector<DWORD>> spriteVectorsVector;
+	for (rapidjson::Value::ConstMemberIterator itr = slicer.MemberBegin(); itr != slicer.MemberEnd(); ++itr)
+	{
+		if (itr->value.GetType() == rapidjson::kArrayType)
+		{
+			std::vector<DWORD> newType;
+			rapidjson::Value& T = slicer[itr->name.GetString()];
+			for (rapidjson::SizeType i = 0; i < T.Size(); i++)
+			{
+				rapidjson::Value& F = T[i];
+				Rectf* newF=new Rectf{ (float)F["left"].GetInt(),(float)F["right"].GetInt() ,(float)F["top"].GetInt() ,(float)F["bottom"].GetInt() };
+				DWORD tSpriteHandle = init_sprite(texture_handle, newF);
+				delete newF;
+				newType.push_back(tSpriteHandle);
+			}
+			spriteVectorsVector.push_back(newType);
+		}
+
+	}
+	free(cutterM.mem);
+	return spriteVectorsVector;
 }
